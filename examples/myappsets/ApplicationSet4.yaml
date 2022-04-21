@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: infra
+spec:
+  generators:
+  - matrix:
+      generators:
+        - merge:
+            mergeKeys:
+              - path
+            generators:
+            - git:
+                repoURL: https://github.com/qxmips/applicationset.git
+                revision: HEAD
+                directories:
+                - path: examples/myappsets/apps/charts/*
+            - git:
+                repoURL: https://github.com/qxmips/applicationset.git
+                revision: HEAD
+                files:
+                - path: examples/myappsets/apps/charts/**/values.yaml
+        - list:
+            elements:
+            - cluster: cust2
+              url: https://kubernetes.default.svc
+            - cluster: cust1
+              url: https://kubernetes.default.svc
+  template:
+    metadata:
+      name: '{{cluster}}-{{releaseName}}'
+    spec:
+      project: default
+      source:
+        chart:  '{{path.basename}}'
+        repoURL: '{{repoURL}}'
+        targetRevision: '{{targetRevision}}'
+        helm:
+          releaseName: '{{releaseName}}'
+      destination:
+        server: '{{url}}'
+        namespace: '{{namespace}}'
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true
+        automated:
+          selfHeal: true
+          prune: true
